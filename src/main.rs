@@ -16,12 +16,14 @@ pub const EOF: c_int = -1;
 pub const O_RDONLY: c_int = 0;
 pub const O_RDWR: c_int = 2;
 
+pub const EPOLLIN: u32 = 0x1;
+pub const EPOLL_CTL_ADD: c_int = 1;
+
 #[allow(non_camel_case_types)]
 #[repr(C)]
-struct pollfd {
-    fd: c_int,
-    events: c_short,
-    revents: c_short,
+struct epoll_event {
+    events: u32,
+    data: u64,
 }
 
 #[link(name = "c")]
@@ -29,19 +31,21 @@ extern "C" {
     // https://www.gnu.org/software/libc/manual/html_node/Opening-and-Closing-Files.html#Opening-and-Closing-Files
     fn open(filename: *const c_char, flags: c_int) -> c_int;
 
-    // https://www.gnu.org/software/libc/manual/html_node/
-    // fn fopen(filename: *const c_char, mode: *const c_char) -> *mut FILE;
-
     // https://man7.org/linux/man-pages/man3/fopen.3.html
     fn fdopen(fd: c_int, mode: *const c_char) -> *mut FILE;
 
     // https://www.gnu.org/software/libc/manual/html_node/Character-Input.html#Character-Input
     fn fgetc(stream: *mut FILE) -> c_int;
-    // https://man7.org/linux/man-pages/man3/fileno.3.html
-    fn fileno(stream: *mut FILE) -> c_int;
+
     // https://man7.org/linux/man-pages/man2/epoll_create.2.html
     // size is ignored, but must be > 0
     fn epoll_create(size: c_int) -> c_int;
+
+    // https://man7.org/linux/man-pages/man2/epoll_ctl.2.html
+    fn epoll_ctl(epfd: c_int, op: c_int, fd: c_int, event: *mut epoll_event) -> c_int;
+
+    // https://man7.org/linux/man-pages/man2/epoll_wait.2.html
+    fn epoll_wait(epfd: c_int, events: *mut epoll_event, maxevents: c_int, timeout: c_int) -> c_int;
 }
 
 fn main() {
@@ -67,6 +71,47 @@ fn main() {
     }
 
     println!("Stream opened");
+
+    let poll = unsafe {
+        epoll_create(1)
+    };
+
+    if poll < 1 {
+        panic!("poll is < 0")
+    }
+
+    let mut event= epoll_event {
+        events: EPOLLIN,
+        data: 0
+    };
+
+    let result = unsafe {
+        let op = EPOLL_CTL_ADD;
+        epoll_ctl(poll, op, file_descriptor, std::ptr::addr_of_mut!(event))
+    };
+
+    if result < 0 {
+        panic!("epoll_ctl returned < 0")
+    }
+
+    let mut events = [
+        epoll_event {
+            events: 0,
+            data: 0
+        },
+        epoll_event {
+            events: 0,
+            data: 0
+        },
+    ];
+
+    let number_of_events = unsafe {
+        epoll_wait(poll, events.as_mut_ptr(), 2, -1)
+    };
+
+    if number_of_events < 1 {
+        panic!("no events received")
+    }
 
     loop {
         let c = unsafe { fgetc(file) };
