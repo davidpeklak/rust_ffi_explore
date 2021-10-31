@@ -14,6 +14,7 @@ pub type c_short = i16;
 pub const EOF: c_int = -1;
 pub const O_RDONLY: c_int = 0;
 pub const O_RDWR: c_int = 2;
+pub const O_NONBLOCK: c_int = 2048;
 
 pub const EPOLLIN: u32 = 0x1;
 pub const EPOLL_CTL_ADD: c_int = 1;
