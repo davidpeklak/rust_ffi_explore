@@ -1,10 +1,17 @@
-use crate::clib::{open, O_RDWR, c_int, fdopen, FILE, O_RDONLY, O_NONBLOCK};
-use std::ffi::CString;
+use crate::clib::{open, O_RDWR, c_int, fdopen, FILE, O_NONBLOCK, fgetc, EOF};
+use std::ffi::{CString, NulError};
 
 #[derive(Debug)]
 pub enum Error {
     FileDescriptorError,
     FileStructError,
+    FileStringNulError
+}
+
+impl From<NulError> for Error {
+    fn from(_: NulError) -> Self {
+        Error::FileStringNulError
+    }
 }
 
 type Result<T> = std::result::Result<T, Error>;
@@ -44,5 +51,19 @@ impl File {
             file_descriptor,
             file
         })
+    }
+
+    pub fn read(&mut self) -> Result<CString> {
+        let mut vec: Vec<u8> = Vec::new();
+        loop {
+            let c = unsafe { fgetc(self.file) };
+            if c == EOF {
+                break;
+            } else {
+                vec.push(c as u8)
+            }
+        }
+
+        Ok(CString::new(vec)?)
     }
 }
