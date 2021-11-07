@@ -1,5 +1,7 @@
 use crate::clib::{c_int, epoll_create, epoll_event, EPOLLIN, EPOLL_CTL_ADD, epoll_ctl, epoll_wait};
 use crate::file::File;
+use std::sync::Arc;
+use std::collections::HashMap;
 
 #[derive(Debug)]
 pub enum Error {
@@ -11,6 +13,7 @@ pub enum Error {
 pub type Result<T> = std::result::Result<T, Error>;
 
 pub struct Poll {
+    file_map: HashMap<c_int, Arc<File>>,
     fd: c_int,
 }
 
@@ -24,15 +27,18 @@ impl Poll {
             return Err(Error::ErrorOnCreate);
         }
 
+        let file_map = HashMap::new();
+
         Ok(Poll {
+            file_map,
             fd
         })
     }
 
-    pub fn add(&mut self, file: &File) -> Result<()> {
+    pub fn add(&mut self, file: Arc<File>) -> Result<()> {
         let mut event= epoll_event {
             events: EPOLLIN,
-            data: 0
+            data: file.file_descriptor as u64,
         };
 
         let result = unsafe {
@@ -42,32 +48,37 @@ impl Poll {
 
         if result < 0 {
             return Err(Error::ErrorOnAdd);
+        } else {
+            self.file_map.insert(file.file_descriptor, file);
+            Ok(())
         }
-
-        Ok(())
     }
 
-    pub fn wait(&self) -> Result<()> {
+    pub fn wait(&self) -> Result<Option<Arc<File>>> {
         let mut events = [
             epoll_event {
                 events: 0,
                 data: 0
-            },
-            epoll_event {
-                events: 0,
-                data: 0
-            },
+            }
         ];
 
         let number_of_events = unsafe {
-            epoll_wait(self.fd, events.as_mut_ptr(), 2, -1)
+            epoll_wait(self.fd, events.as_mut_ptr(), 1, -1)
         };
 
         if number_of_events < 1 {
             return Err(Error::ErrorOnWait);
+        } else if number_of_events == 0 {
+            return Ok(None)
+        } else /* number_of_events must be 1 */ {
+            let file_descriptor = events[0].data as c_int;
+            if let Some(file_from_map) = self.file_map.get(&file_descriptor) {
+                return Ok(Some(file_from_map.clone()));
+            } else {
+                return Err(Error::ErrorOnWait);
+            }
         }
 
-        Ok(())
     }
 }
 

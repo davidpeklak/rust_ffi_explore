@@ -1,5 +1,6 @@
 use crate::clib::{open, O_RDWR, c_int, fdopen, FILE, O_NONBLOCK, fgetc, EOF};
 use std::ffi::{CString, NulError};
+use std::ops::Deref;
 
 #[derive(Debug)]
 pub enum Error {
@@ -53,7 +54,7 @@ impl File {
         })
     }
 
-    pub fn read(&mut self) -> Result<CString> {
+    pub fn read(self: &File) -> Result<CString> {
         let mut vec: Vec<u8> = Vec::new();
         loop {
             let c = unsafe { fgetc(self.file) };
@@ -67,3 +68,4 @@ impl File {
         Ok(CString::new(vec)?)
     }
 }
+
