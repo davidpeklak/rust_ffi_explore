@@ -13,9 +13,9 @@ use crate::poll::Poll;
 use std::collections::HashMap;
 use crate::clib::c_int;
 use std::ops::Deref;
-use std::sync::mpsc::{Receiver, SyncSender, TryRecvError};
+use std::sync::mpsc::{Receiver, SyncSender, TryRecvError, sync_channel};
 
-struct PollWakerContext {
+pub struct PollWakerContext {
     poll: Poll,
     map: HashMap<c_int, Waker>
 }
@@ -28,30 +28,51 @@ impl PollWakerContext {
         }
     }
 
-    pub fn add(&mut self, file: Arc<File>, waker: Waker) {
-        self.map.insert(file.file_descriptor, waker);
+    pub fn add(&mut self, file: Arc<Mutex<File>>, waker: Waker) {
+        self.map.insert(file.lock().unwrap().file_descriptor, waker);
     }
 
     pub fn block(&mut self) {
         if let Ok(Some(file)) = self.poll.wait() {
-            if let Some(waker) = self.map.get(&file.file_descriptor) {
+            if let Some(waker) = self.map.get(&file.lock().unwrap().file_descriptor) {
                 waker.clone().wake();
             }
         }
     }
 }
 
-struct FileReadFuture {
-    file: Arc<File>,
+
+pub struct FileReadFuture {
+    file: Arc<Mutex<File>>,
     bytes: Vec<u8>,
     poll_waker_context: Arc<Mutex<PollWakerContext>>
+}
+
+// I have a problem with FileReadFuture.file not implementing Send and Sync, which I do not understand
+// I work around that by implementing Sync and Send for FileReadFuture
+unsafe impl Sync for FileReadFuture{
+
+}
+
+unsafe impl Send for FileReadFuture{
+
+}
+
+impl FileReadFuture {
+    pub fn new(file: Arc<Mutex<File>>, poll_waker_context: Arc<Mutex<PollWakerContext>>) -> FileReadFuture {
+        FileReadFuture {
+            file,
+            bytes: Vec::new(),
+            poll_waker_context,
+        }
+    }
 }
 
 impl Future for FileReadFuture {
     type Output = CString;
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> std::task::Poll<CString> {
-        let mut newBytes =self.file.read().unwrap().into_bytes();
+        let mut newBytes =self.file.lock().unwrap().read().unwrap().into_bytes();
         self.bytes.append(&mut newBytes);
 
         if self.bytes.len() >= 100 {
@@ -65,14 +86,24 @@ impl Future for FileReadFuture {
     }
 }
 
-struct Executor {
+pub struct Executor {
     queue_receiver: Receiver<Arc<Task>>,
     queue_sender: SyncSender<Arc<Task>>,
     poll_waker_context: Arc<Mutex<PollWakerContext>>,
 }
 
 impl Executor {
-    fn queue(&self, future: impl Future<Output = ()> + 'static + Send) {
+
+    pub fn new(poll_waker_context: Arc<Mutex<PollWakerContext>>) -> Executor {
+        let (queue_sender,  queue_receiver) = sync_channel(10);
+        Executor {
+            queue_receiver,
+            queue_sender,
+            poll_waker_context
+        }
+    }
+
+    pub fn queue(&self, future: impl Future<Output = ()> + 'static + Send) {
         let future: Pin<Box<dyn Future<Output = ()> + 'static + Send>> = Box::pin(future);
         let future = Mutex::new(future);
         let queue_sender = self.queue_sender.clone();
@@ -84,11 +115,14 @@ impl Executor {
         self.queue_sender.send(task);
     }
 
-    fn execute(&self) {
+    pub fn execute(&self) {
         loop {
+            println!("Entering execute loop");
             // poll all tasks that are queued
             while let Ok(task) = self.queue_receiver.try_recv() {
-                self.poll_task(task)
+                println!("Received a task in execute loop");
+                self.poll_task(task);
+                println!("Polled a task in execute loop");
             }
             // block on io. This might wake tasks and therefore queue them, so we can loop back to
             // processing queued tasks again.
@@ -109,7 +143,9 @@ impl Executor {
     }
 
     fn io_block(&self) {
-      self.poll_waker_context.lock().unwrap().block();
+        println!("entering io_block");
+        self.poll_waker_context.lock().unwrap().block();
+        println!("done with io_block");
     }
 }
 

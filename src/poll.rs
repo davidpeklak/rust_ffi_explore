@@ -1,6 +1,6 @@
 use crate::clib::{c_int, epoll_create, epoll_event, EPOLLIN, EPOLL_CTL_ADD, epoll_ctl, epoll_wait};
 use crate::file::File;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::collections::HashMap;
 
 #[derive(Debug)]
@@ -13,7 +13,7 @@ pub enum Error {
 pub type Result<T> = std::result::Result<T, Error>;
 
 pub struct Poll {
-    file_map: HashMap<c_int, Arc<File>>,
+    file_map: HashMap<c_int, Arc<Mutex<File>>>,
     fd: c_int,
 }
 
@@ -35,26 +35,29 @@ impl Poll {
         })
     }
 
-    pub fn add(&mut self, file: Arc<File>) -> Result<()> {
+    pub fn add(&mut self, file: Arc<Mutex<File>>) -> Result<()> {
         let mut event= epoll_event {
             events: EPOLLIN,
-            data: file.file_descriptor as u64,
+            data: file.lock().unwrap().file_descriptor as u64,
         };
 
         let result = unsafe {
             let op = EPOLL_CTL_ADD;
-            epoll_ctl(self.fd, op, file.file_descriptor, std::ptr::addr_of_mut!(event))
+            epoll_ctl(self.fd, op, file.lock().unwrap().file_descriptor, std::ptr::addr_of_mut!(event))
         };
 
         if result < 0 {
             return Err(Error::ErrorOnAdd);
         } else {
-            self.file_map.insert(file.file_descriptor, file);
+            let file_descriptor = {
+                file.lock().unwrap().file_descriptor
+            };
+            self.file_map.insert(file_descriptor, file);
             Ok(())
         }
     }
 
-    pub fn wait(&self) -> Result<Option<Arc<File>>> {
+    pub fn wait(&self) -> Result<Option<Arc<Mutex<File>>>> {
         let mut events = [
             epoll_event {
                 events: 0,
