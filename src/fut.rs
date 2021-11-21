@@ -31,6 +31,14 @@ impl PollWakerContext {
     pub fn add(&mut self, file: Arc<File>, waker: Waker) {
         self.map.insert(file.file_descriptor, waker);
     }
+
+    pub fn block(&mut self) {
+        if let Ok(Some(file)) = self.poll.wait() {
+            if let Some(waker) = self.map.get(&file.file_descriptor) {
+                waker.clone().wake();
+            }
+        }
+    }
 }
 
 struct FileReadFuture {
@@ -60,25 +68,31 @@ impl Future for FileReadFuture {
 struct Executor {
     queue_receiver: Receiver<Arc<Task>>,
     queue_sender: SyncSender<Arc<Task>>,
+    poll_waker_context: Arc<Mutex<PollWakerContext>>,
 }
 
 impl Executor {
     fn queue(&self, future: impl Future<Output = ()> + 'static + Send) {
         let future: Pin<Box<dyn Future<Output = ()> + 'static + Send>> = Box::pin(future);
         let future = Mutex::new(future);
+        let queue_sender = self.queue_sender.clone();
         let task = Task{
-            future
+            future,
+            queue_sender,
         };
         let task = Arc::new(task);
         self.queue_sender.send(task);
     }
 
     fn execute(&self) {
-        let recv_result = self.queue_receiver.try_recv();
-        match recv_result {
-            Ok(task) => self.poll_task(task),
-            Err(TryRecvError::Disconnected) => panic!("TryRecvError::Disconnected"),
-            Err(TryRecvError::Empty) => self.io_block(),
+        loop {
+            // poll all tasks that are queued
+            while let Ok(task) = self.queue_receiver.try_recv() {
+                self.poll_task(task)
+            }
+            // block on io. This might wake tasks and therefore queue them, so we can loop back to
+            // processing queued tasks again.
+            self.io_block();
         }
     }
 
@@ -95,15 +109,16 @@ impl Executor {
     }
 
     fn io_block(&self) {
-      unimplemented!()
+      self.poll_waker_context.lock().unwrap().block();
     }
 }
 
 struct Task {
-    future: Mutex<Pin<Box<Future<Output = ()> + Send>>>
+    future: Mutex<Pin<Box<Future<Output = ()> + Send>>>,
+    queue_sender: SyncSender<Arc<Task>>,
 }
  impl Wake for Task {
      fn wake(self: Arc<Self>) {
-         unimplemented!()
+         self.queue_sender.send(self.clone());
      }
  }
