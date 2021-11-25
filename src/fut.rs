@@ -86,20 +86,32 @@ impl Future for FileReadFuture {
     }
 }
 
-pub struct Executor {
-    queue_receiver: Receiver<Arc<Task>>,
-    queue_sender: SyncSender<Arc<Task>>,
-    poll_waker_context: Arc<Mutex<PollWakerContext>>,
+trait IoBlocker {
+    fn block(&self);
 }
 
-impl Executor {
+impl IoBlocker for Arc<Mutex<PollWakerContext>> {
+    fn block(&self) {
+        self.lock().unwrap().block();
+    }
+}
 
-    pub fn new(poll_waker_context: Arc<Mutex<PollWakerContext>>) -> Executor {
+pub struct Executor<IO_BLOCKER> {
+    queue_receiver: Receiver<Arc<Task>>,
+    queue_sender: SyncSender<Arc<Task>>,
+    io_blocker: IO_BLOCKER, // Arc<Mutex<PollWakerContext>>,
+}
+
+impl<IO_BLOCKER> Executor<IO_BLOCKER>
+where IO_BLOCKER: IoBlocker
+{
+
+    pub fn new(io_blocker: IO_BLOCKER) -> Executor<IO_BLOCKER> {
         let (queue_sender,  queue_receiver) = sync_channel(10);
         Executor {
             queue_receiver,
             queue_sender,
-            poll_waker_context
+            io_blocker
         }
     }
 
@@ -126,7 +138,7 @@ impl Executor {
             }
             // block on io. This might wake tasks and therefore queue them, so we can loop back to
             // processing queued tasks again.
-            self.io_block();
+            self.io_blocker.block();
         }
     }
 
@@ -140,12 +152,6 @@ impl Executor {
             TaskPoll::Ready(()) => (),
             TaskPoll::Pending => (),
         }
-    }
-
-    fn io_block(&self) {
-        println!("entering io_block");
-        self.poll_waker_context.lock().unwrap().block();
-        println!("done with io_block");
     }
 }
 
