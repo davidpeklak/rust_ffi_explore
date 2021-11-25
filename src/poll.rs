@@ -85,6 +85,6 @@ impl Poll {
     }
 }
 
-pub struct PollEvents<const SIZE: usize> {
+struct PollEvents<const SIZE: usize> {
     events: [epoll_event; SIZE],
 }

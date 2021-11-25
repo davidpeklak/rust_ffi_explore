@@ -153,8 +153,9 @@ struct Task {
     future: Mutex<Pin<Box<Future<Output = ()> + Send>>>,
     queue_sender: SyncSender<Arc<Task>>,
 }
- impl Wake for Task {
-     fn wake(self: Arc<Self>) {
+
+impl Wake for Task {
+    fn wake(self: Arc<Self>) {
          self.queue_sender.send(self.clone());
      }
- }
+}
