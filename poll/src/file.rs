@@ -1,5 +1,5 @@
-use crate::clib::{c_int, fdopen, fgetc, open, EOF, FILE, O_NONBLOCK, O_RDWR};
-use std::ffi::{CString, NulError};
+use crate::clib::{c_int, fdopen, fgetc, open, EOF, FILE, O_NONBLOCK, O_RDWR, path_to_c_string};
+use std::{ffi::{CString, NulError}, path::Path};
 
 #[derive(Debug)]
 pub enum Error {
@@ -23,7 +23,10 @@ pub struct File {
 }
 
 impl File {
-    pub fn new(path: CString) -> Result<File> {
+    pub fn new<P>(path: P) -> Result<File> 
+    where P: AsRef<Path>
+    {
+        let c_string = path_to_c_string(path);
         let file_descriptor = unsafe {
             // this is the only combination of flags that seems to work.
             // O_RDWR only blocks on fgetc(...) and thus never gets out of the loop of reading chars
@@ -32,7 +35,7 @@ impl File {
             // O_RDONLY only blocks on opening the file, i.e. the program does not reach the point
             // of creating the Poll until something is written to the pipe
             let flags = O_RDWR | O_NONBLOCK;
-            open(path.as_ptr(), flags)
+            open(c_string.as_ptr(), flags)
         };
 
         if file_descriptor < 0 {

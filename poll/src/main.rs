@@ -1,18 +1,12 @@
 use poll::{file::File, Poll};
-use std::{ffi::CString, io::Read};
+use std::io::Read;
 
 fn main() {
     let mut poll = Poll::new().unwrap();
 
-    let pipe1 = {
-        let path = CString::new("pipe1").unwrap();
-        File::new(path).unwrap()
-    };
+    let pipe1 = File::new("pipe1").unwrap();
 
-    let pipe2 = {
-        let path = CString::new("pipe2").unwrap();
-        File::new(path).unwrap()
-    };
+    let pipe2 = File::new("pipe2").unwrap();
 
     poll.add(pipe1).map_err(|(_, e)| e).unwrap();
 
