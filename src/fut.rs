@@ -156,7 +156,7 @@ where IO_BLOCKER: IoBlocker
 }
 
 struct Task {
-    future: Mutex<Pin<Box<Future<Output = ()> + Send>>>,
+    future: Mutex<Pin<Box<dyn Future<Output = ()> + Send>>>,
     queue_sender: SyncSender<Arc<Task>>,
 }
 
