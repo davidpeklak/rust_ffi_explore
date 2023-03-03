@@ -8,9 +8,9 @@ fn main() {
 
     let pipe2 = File::new("pipe2").unwrap();
 
-    poll.add(pipe1).map_err(|(_, e)| e).unwrap();
+    poll.add(pipe1).unwrap();
 
-    poll.add(pipe2).map_err(|(_, e)| e).unwrap();
+    poll.add(pipe2).unwrap();
 
     loop {
         println!("poll.wait...");

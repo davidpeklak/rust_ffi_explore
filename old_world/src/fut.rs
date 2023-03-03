@@ -6,13 +6,11 @@ use std::future::Future;
 use std::task::{Poll as TaskPoll, Wake};
 use std::pin::Pin;
 use std::task::{Context, Waker};
-use crate::file::File;
+use poll::file::File;
 use std::ffi::CString;
 use std::sync::{Arc, Mutex};
-use crate::poll::Poll;
+use poll::Poll;
 use std::collections::HashMap;
-use crate::clib::c_int;
-use std::ops::Deref;
 use std::sync::mpsc::{Receiver, SyncSender, TryRecvError, sync_channel};
 
 pub struct PollWakerContext {
