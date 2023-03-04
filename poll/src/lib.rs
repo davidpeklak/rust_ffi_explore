@@ -17,8 +17,9 @@ pub enum Error {
 
 pub type Result<T> = std::result::Result<T, Error>;
 
+pub type Token = u64;
+
 pub struct Poll {
-    file_map: HashMap<c_int, RefCell<File>>,
     fd: c_int,
 }
 
@@ -27,21 +28,19 @@ impl Poll {
         let fd = unsafe { epoll_create(1) };
 
         if fd < 1 {
-            return Err(Error::ErrorOnCreate);
+            Err(Error::ErrorOnCreate)
+        } else {
+            Ok(Poll { fd })
         }
-
-        let file_map = HashMap::new();
-
-        Ok(Poll { file_map, fd })
     }
 
     /// Adds a `File`to the Poll. Note that the file is consumed.
     /// In case of an error, the  file is returned in a tuple together with the error.
-    pub fn add(&mut self, file: File) -> std::result::Result<(), (File, Error)> {
+    pub fn add(&mut self, file: &File, token: Token) -> std::result::Result<(), Error> {
         let file_descriptor = file.file_descriptor;
         let mut event = epoll_event {
             events: EPOLLIN,
-            data: file_descriptor as u64,
+            data: token,
         };
 
         let result = unsafe {
@@ -50,31 +49,26 @@ impl Poll {
         };
 
         if result < 0 {
-            return Err((file, Error::ErrorOnAdd));
+            Err(Error::ErrorOnAdd)
         } else {
-            self.file_map.insert(file_descriptor, RefCell::new(file));
             Ok(())
         }
     }
 
-    pub fn wait(&self) -> Result<Option<RefMut<File>>> {
+    pub fn wait(&self) -> Result<Option<Token>> {
         let mut events = [epoll_event { events: 0, data: 0 }];
 
         let number_of_events = unsafe { epoll_wait(self.fd, events.as_mut_ptr(), 1, -1) };
 
         if number_of_events < 1 {
-            return Err(Error::ErrorOnWait);
+            Err(Error::ErrorOnWait)
         } else if number_of_events == 0 {
-            return Ok(None);
+            Ok(None)
         } else
         /* number_of_events must be 1 */
         {
-            let file_descriptor = events[0].data as c_int;
-            if let Some(file_from_map) = self.file_map.get(&file_descriptor) {
-                return Ok(Some(file_from_map.borrow_mut()));
-            } else {
-                return Err(Error::ErrorOnWait);
-            }
+            let token = events[0].data as Token;
+            Ok(Some(token))
         }
     }
 }

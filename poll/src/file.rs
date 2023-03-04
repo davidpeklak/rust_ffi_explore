@@ -1,5 +1,8 @@
-use crate::clib::{c_int, fdopen, fgetc, open, EOF, FILE, O_NONBLOCK, O_RDWR, path_to_c_string};
-use std::{ffi::{CString, NulError}, path::Path};
+use crate::clib::{c_int, fdopen, fgetc, open, path_to_c_string, EOF, FILE, O_NONBLOCK, O_RDWR};
+use std::{
+    ffi::{CString, NulError},
+    path::Path,
+};
 
 #[derive(Debug)]
 pub enum Error {
@@ -23,8 +26,9 @@ pub struct File {
 }
 
 impl File {
-    pub fn new<P>(path: P) -> Result<File> 
-    where P: AsRef<Path>
+    pub fn new<P>(path: P) -> Result<File>
+    where
+        P: AsRef<Path>,
     {
         let c_string = path_to_c_string(path);
         let file_descriptor = unsafe {

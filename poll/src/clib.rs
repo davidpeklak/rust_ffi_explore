@@ -1,5 +1,5 @@
-use std::{os::raw::c_char, ffi::CString, path::Path};
 use std::os::unix::ffi::OsStrExt;
+use std::{ffi::CString, os::raw::c_char, path::Path};
 
 pub enum FILE {}
 
@@ -56,6 +56,8 @@ extern "C" {
 }
 
 pub fn path_to_c_string<P>(path: P) -> CString
-where P: AsRef<Path> {
+where
+    P: AsRef<Path>,
+{
     CString::new(path.as_ref().as_os_str().as_bytes()).unwrap()
 }
