@@ -2,4 +2,5 @@
 
 members = [
     "poll",
+    "reactor_executor",
 ]

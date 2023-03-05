@@ -7,14 +7,14 @@ fn main() {
     let mut token_map: HashMap<Token, File> = HashMap::new();
 
     let token_1 = 1;
-    let pipe1 = File::new("pipe1").unwrap();
-    poll.add(&pipe1, token_1).unwrap();
-    token_map.insert(token_1, pipe1);
+    let pipe_1 = File::new("pipe1").unwrap();
+    poll.add(&pipe_1, token_1).unwrap();
+    token_map.insert(token_1, pipe_1);
 
     let token_2 = 2;
-    let pipe2 = File::new("pipe2").unwrap();
-    poll.add(&pipe2, token_2).unwrap();
-    token_map.insert(token_2, pipe2);
+    let pipe_2 = File::new("pipe2").unwrap();
+    poll.add(&pipe_2, token_2).unwrap();
+    token_map.insert(token_2, pipe_2);
 
     loop {
         println!("poll.wait...");
