@@ -12,3 +12,10 @@ version = "0.1.0"
 dependencies = [
  "poll",
 ]
+
+[[package]]
+name = "waker"
+version = "0.1.0"
+dependencies = [
+ "poll",
+]

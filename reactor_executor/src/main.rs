@@ -28,7 +28,7 @@ impl Reactor {
 
 struct Executor {
     receiver: Receiver<Token>,
-    actions: Vec<(Token, Box<dyn FnMut()>)>,
+    actions: Vec<(Token, Task>)>,
 }
 
 impl Executor {
