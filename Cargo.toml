@@ -3,5 +3,6 @@
 members = [
     "poll",
     "reactor_executor",
-    "waker"
+    "waker",
+    "generator",
 ]

@@ -3,6 +3,10 @@
 version = 3
 
 [[package]]
+name = "generator"
+version = "0.1.0"
+
+[[package]]
 name = "poll"
 version = "0.1.0"
 

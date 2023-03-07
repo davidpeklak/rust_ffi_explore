@@ -23,7 +23,7 @@ fn main() {
             Ok(None) => println!("Nothing polled"),
             Ok(Some(token)) => {
                 println!("Received event for token {:?}", token);
-                let mut file = token_map.get_mut(&token).unwrap();
+                let file = token_map.get_mut(&token).unwrap();
 
                 let mut str = String::new();
                 file.read_to_string(&mut str).unwrap();

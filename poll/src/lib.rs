@@ -2,8 +2,6 @@ use crate::clib::{
     c_int, epoll_create, epoll_ctl, epoll_event, epoll_wait, EPOLLIN, EPOLL_CTL_ADD,
 };
 use crate::file::File;
-use std::cell::{RefCell, RefMut};
-use std::collections::HashMap;
 
 mod clib;
 pub mod file;
