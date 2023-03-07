@@ -45,6 +45,54 @@ impl Generator for GeneratorA {
     }
 }
 
+enum GeneratorB {
+    Enter,
+    Yield1 {
+        to_borrow: String,
+        borrowed: *const String,
+    },
+    Exit,
+}
+
+impl GeneratorB {
+    fn start() -> Self {
+        GeneratorB::Enter
+    }
+}
+
+impl Generator for GeneratorB {
+    type Yield = usize;
+    type Return = ();
+
+    fn resume(&mut self) -> GeneratorState<usize, ()> {
+        match self {
+            GeneratorB::Enter => {
+                let to_borrow = String::from("Hello");
+                let borrowed = &to_borrow;
+                let res = borrowed.len();
+
+                *self = GeneratorB::Yield1 { to_borrow, borrowed: std::ptr::null() };
+
+                // NB! And we set the pointer to reference the to_borrow string here
+                if let GeneratorB::Yield1 {to_borrow, borrowed} = self {
+                    *borrowed = to_borrow;
+                }
+
+                GeneratorState::Yielded(res)
+            },
+            GeneratorB::Yield1 { to_borrow: _, borrowed } => {
+                let borrowed: &String = unsafe {&**borrowed};
+                println!("Hello {}", borrowed);
+                *self = GeneratorB::Exit;
+                GeneratorState::Complete(())
+            },
+            GeneratorB::Exit => {
+                panic!("Cannot resume exited generator");
+            }
+        }
+    }
+}
+
 fn main() {
     let mut gen = GeneratorA::start(4);
 
@@ -53,6 +101,19 @@ fn main() {
     }
 
     if let GeneratorState::Complete(()) = gen.resume() {
+        ()
+    }
+
+    let mut gen = GeneratorB::start();
+
+    if let GeneratorState::Yielded(n) = gen.resume() {
+        println!("Got value {}", n);
+    }
+
+    let mut gen2 = GeneratorB::start();
+    std::mem::swap(&mut gen, &mut gen2);
+
+    if let GeneratorState::Complete(()) = gen2.resume() {
         ()
     }
 }
