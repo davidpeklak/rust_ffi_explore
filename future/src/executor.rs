@@ -3,9 +3,10 @@ use std::{
     future::Future,
     pin::Pin,
     sync::mpsc::{channel, Receiver, Sender},
+    task::Context,
 };
 
-use crate::waker::create_waker;
+use crate::waker;
 
 pub type ExecutorToken = u64;
 
@@ -36,6 +37,14 @@ impl Executor {
 
     fn execute(&mut self) {
         while let Ok(executor_token) = self.receiver.try_recv() {
-            
+            match self.futures.get_mut(&executor_token) {
+                None => println!("No future found for executor_token {}", executor_token),
+                Some(future) => {
+                    let waker = waker::create_waker(self.sender.clone(), executor_token);
+                    let mut context = Context::from_waker(&waker);
+                    future.as_mut().poll(&mut context).is_ready();
+                }
+            }
         }
+    }
 }
