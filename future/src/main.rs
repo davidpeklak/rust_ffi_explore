@@ -1,61 +1,27 @@
-use std::{
-    cell::RefCell,
-    future::Future,
-    pin::Pin,
-    task::{Context, Poll},
-};
+use std::cell::RefCell;
 
-use std::io::Read;
-
-use future::reactor::Reactor;
-use poll::{file::File, Token};
-
-type ExecutorToken = usize;
+use future::{executor::Executor, future::ReadNChars, reactor::Reactor};
+use poll::file::File;
 
 fn main() {
-    println!("Hello world");
-}
+    let reactor = Reactor::new();
+    let reactor = RefCell::from(reactor);
+    let mut executor = Executor::new();
 
-pub struct ReadNChars<'a> {
-    reactor: &'a RefCell<Reactor>,
-    file: File,
-    token: Token,
-    n: usize,
-    buf: String,
-}
+    let executor_token = 1;
+    let pipe_1 = File::new("pipe1").unwrap();
+    let mut fut_1 = create_fut(pipe_1, &reactor);
 
-impl<'a> ReadNChars<'a> {
-    fn new(reactor: &'a RefCell<Reactor>, file: File, n: usize) -> ReadNChars<'a> {
-        let token = file.file_descriptor as Token;
-        let buf = String::new();
+    executor.register(fut_1, executor_token);
 
-        reactor.borrow_mut().poll_add(&file, token);
-
-        ReadNChars {
-            reactor,
-            file,
-            token,
-            n,
-            buf,
-        }
+    loop {
+        executor.execute();
+        reactor.borrow_mut().poll_wait();
     }
 }
 
-impl<'a> Future for ReadNChars<'a> {
-    type Output = String;
 
-    // Poll is the what drives the state machine forward and it's the only
-    // method we'll need to call to drive futures to completion.
-    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<String> {
-        let this = self.get_mut();
-        this.file.read_to_string(&mut this.buf).unwrap();
-        if this.buf.len() < this.n {
-            this.reactor
-                .borrow_mut()
-                .add_waker(this.token, cx.waker().clone());
-            Poll::Pending
-        } else {
-            Poll::Ready(this.buf.clone())
-        }
-    }
+async fn create_fut<'a>(file: File, reactor: &'a RefCell<Reactor>) {
+    let result = ReadNChars::new(reactor, file, 10).await;
+    println!("I read {}", result)
 }

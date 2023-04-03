@@ -1,12 +1,21 @@
+use poll::{file::File, Poll, Token};
 use std::{collections::HashMap, sync::mpsc::Sender, task::Waker};
 
-use poll::{file::File, Poll, Token};
 pub struct Reactor {
     token_waker_map: HashMap<Token, Waker>,
     poll: Poll,
 }
 
 impl Reactor {
+    pub fn new() -> Reactor {
+        let poll = Poll::new().unwrap();
+        let token_waker_map = HashMap::new();
+        Reactor {
+            token_waker_map,
+            poll,
+        }
+    }
+
     pub fn poll_wait(&mut self) {
         println!("poll.wait...");
         match self.poll.wait() {

@@ -10,14 +10,14 @@ use crate::waker;
 
 pub type ExecutorToken = u64;
 
-struct Executor {
+pub struct Executor {
     sender: Sender<ExecutorToken>,
     receiver: Receiver<ExecutorToken>,
     futures: HashMap<ExecutorToken, Pin<Box<dyn Future<Output = ()>>>>,
 }
 
 impl Executor {
-    fn new() -> Executor {
+    pub fn new() -> Executor {
         let (sender, receiver) = channel();
         Executor {
             sender,
@@ -26,7 +26,7 @@ impl Executor {
         }
     }
 
-    fn register<F>(&mut self, future: F, executor_token: ExecutorToken)
+    pub fn register<F>(&mut self, future: F, executor_token: ExecutorToken)
     where
         F: Future<Output = ()> + 'static,
     {
@@ -35,7 +35,7 @@ impl Executor {
         self.sender.send(executor_token).unwrap();
     }
 
-    fn execute(&mut self) {
+    pub fn execute(&mut self) {
         while let Ok(executor_token) = self.receiver.try_recv() {
             match self.futures.get_mut(&executor_token) {
                 None => println!("No future found for executor_token {}", executor_token),
