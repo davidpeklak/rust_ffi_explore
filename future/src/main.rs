@@ -1,16 +1,17 @@
-use std::cell::RefCell;
+use std::{cell::RefCell, rc::Rc};
 
 use future::{executor::Executor, future::ReadNChars, reactor::Reactor};
 use poll::file::File;
 
 fn main() {
     let reactor = Reactor::new();
-    let reactor = RefCell::from(reactor);
+    let reactor = RefCell::new(reactor);
+    let reactor = Rc::new(reactor);
     let mut executor = Executor::new();
 
     let executor_token = 1;
     let pipe_1 = File::new("pipe1").unwrap();
-    let mut fut_1 = create_fut(pipe_1, &reactor);
+    let fut_1 = create_fut(pipe_1, reactor.clone());
 
     executor.register(fut_1, executor_token);
 
@@ -21,7 +22,7 @@ fn main() {
 }
 
 
-async fn create_fut<'a>(file: File, reactor: &'a RefCell<Reactor>) {
+async fn create_fut<'a>(file: File, reactor: Rc<RefCell<Reactor>>) {
     let result = ReadNChars::new(reactor, file, 10).await;
     println!("I read {}", result)
 }

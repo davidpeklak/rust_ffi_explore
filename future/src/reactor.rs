@@ -1,5 +1,5 @@
 use poll::{file::File, Poll, Token};
-use std::{collections::HashMap, sync::mpsc::Sender, task::Waker};
+use std::{collections::HashMap, task::Waker};
 
 pub struct Reactor {
     token_waker_map: HashMap<Token, Waker>,

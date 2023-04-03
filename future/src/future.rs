@@ -3,22 +3,22 @@ use std::{
     future::Future,
     io::Read,
     pin::Pin,
-    task::{Context, Poll},
+    task::{Context, Poll}, rc::Rc,
 };
 
 use crate::reactor::Reactor;
 use poll::{file::File, Token};
 
-pub struct ReadNChars<'a> {
-    reactor: &'a RefCell<Reactor>,
+pub struct ReadNChars {
+    reactor: Rc<RefCell<Reactor>>,
     file: File,
     token: Token,
     n: usize,
     buf: String,
 }
 
-impl<'a> ReadNChars<'a> {
-    pub fn new(reactor: &'a RefCell<Reactor>, file: File, n: usize) -> ReadNChars<'a> {
+impl ReadNChars {
+    pub fn new(reactor: Rc<RefCell<Reactor>>, file: File, n: usize) -> ReadNChars {
         let token = file.file_descriptor as Token;
         let buf = String::new();
 
@@ -34,7 +34,7 @@ impl<'a> ReadNChars<'a> {
     }
 }
 
-impl<'a> Future for ReadNChars<'a> {
+impl Future for ReadNChars{
     type Output = String;
 
     // Poll is the what drives the state machine forward and it's the only
