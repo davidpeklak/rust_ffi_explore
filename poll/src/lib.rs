@@ -1,5 +1,5 @@
 use crate::clib::{
-    c_int, epoll_create, epoll_ctl, epoll_event, epoll_wait, EPOLLIN, EPOLL_CTL_ADD,
+    c_int, epoll_create, epoll_ctl, epoll_event, epoll_wait, EPOLLIN, EPOLL_CTL_ADD, EPOLL_CTL_DEL
 };
 use crate::file::File;
 
@@ -10,6 +10,7 @@ pub mod file;
 pub enum Error {
     ErrorOnCreate,
     ErrorOnAdd,
+    ErrorOnRemove,
     ErrorOnWait,
 }
 
@@ -48,6 +49,20 @@ impl Poll {
 
         if result < 0 {
             Err(Error::ErrorOnAdd)
+        } else {
+            Ok(())
+        }
+    }
+
+    pub fn remove(&mut self, file: &File) -> std::result::Result<(), Error> {
+        let file_descriptor = file.file_descriptor;
+        let result = unsafe {
+            let op = EPOLL_CTL_DEL;
+            epoll_ctl(self.fd, op, file_descriptor, std::ptr::null_mut() as *mut epoll_event)
+        };
+
+        if result < 0 {
+            Err(Error::ErrorOnRemove)
         } else {
             Ok(())
         }

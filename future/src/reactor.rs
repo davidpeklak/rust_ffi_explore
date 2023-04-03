@@ -38,7 +38,15 @@ impl Reactor {
         self.poll.add(file, token).unwrap();
     }
 
+    pub fn poll_remove(&mut self, file: &File) {
+        self.poll.remove(file).unwrap();
+    }
+
     pub fn add_waker(&mut self, token: Token, waker: Waker) {
         self.token_waker_map.insert(token, waker);
+    }
+
+    pub fn remove_waker(&mut self, token: Token) {
+        self.token_waker_map.remove(&token);
     }
 }

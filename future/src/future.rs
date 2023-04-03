@@ -48,6 +48,12 @@ impl Future for ReadNChars{
                 .add_waker(this.token, cx.waker().clone());
             Poll::Pending
         } else {
+            this.reactor
+                .borrow_mut()
+                .remove_waker(this.token);
+            this.reactor
+            .borrow_mut()
+            .poll_remove(&this.file);
             Poll::Ready(this.buf.clone())
         }
     }

@@ -20,6 +20,7 @@ pub const O_NONBLOCK: c_int = 2048;
 
 pub const EPOLLIN: u32 = 0x1;
 pub const EPOLL_CTL_ADD: c_int = 1;
+pub const EPOLL_CTL_DEL: c_int = 2; 
 
 #[allow(non_camel_case_types)]
 #[repr(C)]
