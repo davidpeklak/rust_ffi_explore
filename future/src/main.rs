@@ -20,7 +20,6 @@ fn main() {
     }
 }
 
-
 async fn create_fut<'a>(reactor: Rc<RefCell<Reactor>>) {
     let pipe_1 = File::new("pipe1").unwrap();
     println!("Opended pipe1 with fd {}", pipe_1.file_descriptor);
